@@ -2,6 +2,7 @@ import discord
 import os
 import requests
 import json
+from replit import db
 
 client = discord.Client()
 
@@ -11,7 +12,7 @@ ethermine_api = "https://api.ethermine.org"
 def get_help_msg():
   embed=discord.Embed(title="help", color=0x355271)
   embed.add_field(name='k!help', value="ce message", inline=False)
-  embed.add_field(name='k!hello', value="bot say hello", inline=False)
+  embed.add_field(name='k!hello', value="bot dit hello", inline=False)
   embed.add_field(name='k!stat', value="ethermine stat", inline=False)
   return(embed)
 
@@ -24,6 +25,8 @@ def create_ethermine_embed(title=""):
 #check eth adress is valid
 def ethIdIsValid(id=""):
   return(42 == len(str(id)))
+
+
 
 #ethermine pool stat 
 def get_ethermine_stat():
@@ -44,8 +47,10 @@ def get_ethermine_stat():
 
   return(embed)
 # ethermine miner stat
-def get_ethermine_minerstat(minerId=""):
-
+def get_ethermine_minerstat(message):
+  messages = message.content.split(' ',1)
+  #if no miner id check if userId is in db
+  minerId = db[message.author.id] if len(messages) < 2 else messages[1]
   #check minerId 
   if not ethIdIsValid(minerId):
     embed=create_ethermine_embed()
@@ -64,7 +69,6 @@ def get_ethermine_minerstat(minerId=""):
   stale_shares = json_data['data']['staleShares']
   active_workers = json_data['data']['activeWorkers']
 
-
   embed=create_ethermine_embed()
   embed.add_field(name='Reported Hashrate', value=str(report_hash / 1000000 )[0:-5] + ' MH/s', inline=False)
   embed.add_field(name='Actual Hashrate', value= str(current_hash / 1000000 )[0:-13] + ' MH/s', inline=False)
@@ -76,6 +80,20 @@ def get_ethermine_minerstat(minerId=""):
   embed.add_field(name='Active Workers', value=active_workers, inline=False)
   embed.set_footer(text="KahaBot")
   return(embed)
+
+def set_minerId(message):
+  messages = message.content.split(' ',1)
+  minerId = "" if len(messages) < 2 else messages[1]
+
+  if not ethIdIsValid(minerId):
+    return('invalid id!!!')
+  
+  db[message.author.id] = minerId;
+  return('eth id mise a jour')
+
+def del_minerId(userId):
+  del db[userId]
+  return('eth id supprimer')
 
 @client.event
 async def on_ready():
@@ -93,7 +111,10 @@ async def on_message(message):
     if message.content.startswith('k!stat'):
         await message.channel.send(embed=get_ethermine_stat())
     if message.content.startswith('k!minerstat'):
-        minnerId = message.content.split('k!minerstat ',1)[1]
-        await message.channel.send(embed=get_ethermine_minerstat(minnerId))
+        await message.channel.send(embed=get_ethermine_minerstat(message))
+    if message.content.startswith('k!setMinerId'):
+        await message.channel.send(set_minerId(message))
+    if message.content.startswith('k!delMinerId'):
+        await message.channel.send(del_minerId(message.author.id))
 
 client.run(os.getenv('TOKEN'))
